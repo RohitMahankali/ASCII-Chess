@@ -44,6 +44,8 @@ public class Chess {
 	
 	public static boolean checkMate = false;
 	
+	public static boolean staleMate = false;
+	
 	public static boolean enPass = false;
 	
 	
@@ -341,6 +343,59 @@ public class Chess {
 		}
 		return captures;
 	}
+	
+	
+	/**
+	 * 
+	 * @param p Piece that is being checked if it can move to desired square
+	 * @param destSquare Coordinate of desired square
+	 * @return boolean Determining whether a move can be made for piece to desired square
+	 */
+public static boolean canMove(Piece p, String destSquare) {//check if it's possible to make it to destination square
+		
+		boolean flag = true;
+		String s = checkObstructions(p,destSquare);
+		if (s == null) {
+			return flag;
+		}
+		else {
+			Piece piece;
+			//char col;
+			//System.out.println(s);
+			if (!s.equals(destSquare)) {
+				//System.out.println("Illegal move, try again");
+				flag = false;
+				return flag;
+			}
+			else {
+				piece = retrievePiece(destSquare);
+				if (piece != null) {
+					//col = piece.ID.charAt(0);
+				
+					if (p.ID.charAt(0) == piece.ID.charAt(0)) {
+						//System.out.println("Illegal move, try again");
+						flag = false;
+						return flag;
+					}
+					else {
+						if (p instanceof Pawn) {
+							if (p.currentSquare.charAt(0) == piece.currentSquare.charAt(0)) {
+								//System.out.println("Illegal move, try again");
+								flag = false;
+								return flag;
+							}
+							
+						}
+
+					}
+				}
+			}
+		}
+		return flag;
+}
+	
+	
+	
 	
 	/**
 	* This method checks to see if there are any pieces in the way
@@ -823,7 +878,7 @@ public static boolean makeMove(Piece p, String destSquare) {//check if it's poss
 				p.currentSquare = destSquare;
 			}
 			else {
-				System.out.println("Kevin Durant");
+				//System.out.println("Kevin Durant");
 				char color = p.ID.charAt(0);
 				if (color == 'w') {
 					p.currentSquare = destSquare;
@@ -1142,7 +1197,10 @@ public static boolean makeMove(Piece p, String destSquare) {//check if it's poss
 		}
 	}
 	
-	/*
+	/**
+	 * 
+	 * @return ArrayList of squares covered by the enemy camp
+	 */
 	public static ArrayList<String> adversarials(){
 		ArrayList<String> union = new ArrayList<String>();
 		if (whiteTurn) {
@@ -1165,7 +1223,7 @@ public static boolean makeMove(Piece p, String destSquare) {//check if it's poss
 		}
 		return union;
 	}
-	*/
+	
 	
 	/*
 	
@@ -1200,6 +1258,87 @@ public static boolean makeMove(Piece p, String destSquare) {//check if it's poss
 	*/
 	
 	//Excludes destSquare
+	
+	/**
+	 * 
+	 * @param p The piece that is being selected for movement by the user; is it pinned?
+	 * @return boolean Test to determine whether or not piece is pinned to it's king
+	 */
+	
+	public static boolean isPinned(Piece p) {
+		String currSquare = p.currentSquare;
+		boolean pinned = false;
+		if (whiteTurn) {
+			for (Piece bP : blackPieces) {
+				if (!bP.getMoveSet().contains(wK_Loc)) {
+					continue;
+				}
+				if (checkObstructions(bP,wK_Loc)!= null && checkObstructions(bP,wK_Loc).equals(p.currentSquare)) {
+					p.currentSquare = "";
+					if (checkObstructions(bP,wK_Loc)!=null && checkObstructions(bP,wK_Loc).equals(wK_Loc)) {
+						pinned = true;
+						break;
+					}
+				}
+			}
+		}
+		else {
+			for (Piece wP : whitePieces) {
+				if (!wP.getMoveSet().contains(bK_Loc)) {
+					continue;
+				}
+				if (checkObstructions(wP,bK_Loc)!= null && checkObstructions(wP,bK_Loc).equals(p.currentSquare)) {
+					p.currentSquare = "";
+					if (checkObstructions(wP,bK_Loc)!=null && checkObstructions(wP,bK_Loc).equals(bK_Loc)) {
+						pinned = true;
+						//System.out.println(wP.currentSquare);
+						break;
+					}
+				}
+			}
+		}
+		p.currentSquare = currSquare;
+		return pinned;
+	}
+	
+	
+	/**
+	 * 
+	 * @return boolean whether there exist legal moves to be made
+	 */
+	
+	public static boolean areLegalMoves() {
+		//ArrayList<String> legals = new ArrayList<String>();
+		if (whiteTurn) {
+			for (Piece bP : blackPieces) {
+				ArrayList<String> poss = bP.getMoveSet();
+				for (String move : poss) {
+					if (canMove(bP,move)) {
+						return true;
+					}
+				}
+			}
+		}
+		else {
+			for (Piece wP : whitePieces) {
+				ArrayList<String> poss = wP.getMoveSet();
+				for (String move : poss) {
+					if (canMove(wP,move)) {
+						return true;
+					}
+				}
+			}
+		}
+		staleMate = true;
+		return false;
+	}
+	
+	
+	
+	
+	
+
+	
 	
 	/**
 	 * 
@@ -1271,16 +1410,6 @@ public static boolean makeMove(Piece p, String destSquare) {//check if it's poss
 								}
 							}
 						}
-						/*
-						for (int f = minFile; f < maxFile; f++) {
-							for (int r = minRank; r < maxRank; r++) {
-								char file = (char) f;
-								String sq = file+""+(r-'0');
-								System.out.println(sq);
-								path.add(sq);
-							}
-						}
-						*/
 					}
 					else if (wP instanceof Rook) {
 						if (minRank == maxRank) {
@@ -1515,8 +1644,75 @@ public static boolean makeMove(Piece p, String destSquare) {//check if it's poss
 	}
 	
 	/**
+	 * 
+	 * @return Piece Attacker of the turn player's king
+	 */
+	public static Piece attacker() {
+		if (whiteTurn) {//Chasing black king
+			for (Piece bP : blackPieces) {
+				if (!bP.getMoveSet().contains(wK_Loc)) {
+					continue;
+				}
+				else {
+					if (checkObstructions(bP,wK_Loc) != null && checkObstructions(bP,wK_Loc).equals(wK_Loc)) {
+						return bP;
+					}
+				}
+			}
+		}
+		else {
+			for (Piece wP : whitePieces) {
+				if (!wP.getMoveSet().contains(bK_Loc)) {
+					continue;
+				}
+				else {
+					if (checkObstructions(wP,bK_Loc) != null && checkObstructions(wP,bK_Loc).equals(bK_Loc)) {
+						return wP;
+					}
+				}
+			}
+		}
+		return null;
+	}
+	
+	/**
+	 * 
+	 * @param p Piece in question to move
+	 * @param destSquare String Coordinate to move to
+	 * @return boolean Whether after moving the piece, check can be blocked
+	 */
+	
+	public static boolean blocked(Piece p, String destSquare) {
+		Piece att = attacker();
+		String currSquare = p.currentSquare;
+		boolean possible = canMove(p,destSquare);
+		if (whiteTurn) {
+			if (possible) {
+				p.currentSquare = destSquare;
+			}
+			//String s = "";
+			if (checkObstructions(att,bK_Loc) != null && !checkObstructions(att,bK_Loc).equals(bK_Loc)) {
+				p.currentSquare = currSquare;
+				return true;
+			}
+		}
+		else {
+			if (possible) {
+				p.currentSquare = destSquare;
+			}
+			//String s = "";
+			if (checkObstructions(att,bK_Loc) != null && !checkObstructions(att,bK_Loc).equals(bK_Loc)) {
+				p.currentSquare = currSquare;
+				return true;
+			}
+		}
+		return false;
+	}
+	/**
 	* The main method runs the chess game and also takes care of pawn promotions and castling
+	* 
 	*/
+	
 	
 	public static void main (String []args) {
 		
@@ -1539,6 +1735,7 @@ public static boolean makeMove(Piece p, String destSquare) {//check if it's poss
 				System.out.println("Black's Turn!");
 			}
 			
+			/*
 			for (Piece wP : whitePieces) {
 				System.out.print(wP.currentSquare+" ");
 				
@@ -1548,6 +1745,7 @@ public static boolean makeMove(Piece p, String destSquare) {//check if it's poss
 				System.out.print(bP.currentSquare+" ");
 				
 			}
+			*/
 				
 			//USER-INPUTTED MOVE PARSING
 			System.out.println("Input Move:");
@@ -1665,6 +1863,12 @@ public static boolean makeMove(Piece p, String destSquare) {//check if it's poss
 				
 				Piece p = retrievePiece(currSquare);//WHAT PIECE DO WE HAVE AT THE CURRENT SQUARE??
 				//System.out.println(p.ID);//SHOW ID OF PIECE
+				boolean pin = isPinned(p);
+				if (pin) {
+					System.out.println();
+					System.out.println("Illegal move, try again");
+					continue;
+				}
 				
 				ArrayList<String> enPassants = new ArrayList<String>();
 				Piece prev = null;
@@ -1682,7 +1886,7 @@ public static boolean makeMove(Piece p, String destSquare) {//check if it's poss
 								enPassants.add(lastMove.charAt(0)+""+"6");
 							}
 							else if ((lastMove.charAt(1)+""+lastMove.charAt(3)).equals("75") && (char)(lastMove.charAt(0)-1) == currSquare.charAt(0)) {
-								System.out.println("for teh boyz");
+								//System.out.println("for teh boyz");
 								enPassants.add(lastMove.charAt(0)+""+"6");
 							}
 						}
@@ -1711,18 +1915,22 @@ public static boolean makeMove(Piece p, String destSquare) {//check if it's poss
 				
 				
 				//CANNOT MOVE ANOTHER PIECE WHEN IN CHECK!!!
+				
 				/*
 				if(p.ID.charAt(1) != 'K' && inCheck == true) {
-					System.out.println();
-					System.out.println("Illegal move, try again");
-					continue;
+					if (blocked(p,destSquare)) {
+						System.out.println();
+						System.out.println("Illegal move, try again");
+						continue;
+					}
 				}
 				*/
 				
 				
-				/*
+				
+				
 				//CANNOT MOVE KING WHEN IN CHECK, INTO CHECK!!!
-				else if (p.ID.charAt(1) == 'K' && inCheck == true){
+				if (p.ID.charAt(1) == 'K' && inCheck == true){
 					ArrayList<String> restricted = adversarials();
 					if (restricted.contains(destSquare)) {
 						System.out.println();
@@ -1730,7 +1938,7 @@ public static boolean makeMove(Piece p, String destSquare) {//check if it's poss
 						continue;
 					}
 				}
-				*/
+				
 				
 				
 				
@@ -1894,6 +2102,13 @@ public static boolean makeMove(Piece p, String destSquare) {//check if it's poss
 						System.out.println("Black wins");
 						System.exit(0);
 					}
+				}
+				areLegalMoves();
+				if (staleMate) {
+					System.out.println();
+					System.out.println("Stalemate");
+					System.out.println("draw");
+
 				}
 				//2. DO checkmate with King moving as the option
 				/*
